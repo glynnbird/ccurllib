@@ -102,6 +102,11 @@ const request = async (opts) => {
       parsed.searchParams.append(key, opts.qs[key])
     }
 
+    // pathname
+    if (opts.dbname && opts.path) {
+      parsed.pathname = '/' + opts.dbname + '/' + opts.path
+    }
+
     // headers
     opts.headers = opts.headers || {}
     if (methods.includes(opts.method)) {
@@ -115,6 +120,7 @@ const request = async (opts) => {
       method: opts.method,
       headers: opts.headers
     }
+    console.log(req)
 
     // Set up the request
     let response = ''
@@ -142,10 +148,25 @@ const request = async (opts) => {
   })
 }
 
+// const exchange API key for bearer token
+const getBearerToken = async (apiKey) => {
+  const req = {
+    url: 'https://iam.cloud.ibm.com/identity/token',
+    data: {
+      grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
+      apikey: apiKey
+    },
+    method: 'post'
+  }
+  const response = await request(req)
+  return response
+}
+
 module.exports = {
   init,
   write,
   get,
   set,
-  request
+  request,
+  getBearerToken
 }

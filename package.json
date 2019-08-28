@@ -1,6 +1,6 @@
 {
   "name": "ccurllib",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Utility library for ccurl",
   "main": "index.js",
   "scripts": {
