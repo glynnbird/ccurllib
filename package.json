@@ -1,6 +1,6 @@
 {
   "name": "ccurllib",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Utility library for ccurl",
   "main": "index.js",
   "scripts": {
@@ -20,6 +20,6 @@
   },
   "homepage": "https://github.com/glynnbird/ccurllib#readme",
   "devDependencies": {
-    "standard": "^14.0.2"
+    "standard": "^14.1.0"
   }
 }

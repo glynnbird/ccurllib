@@ -120,7 +120,6 @@ const request = async (opts) => {
       method: opts.method,
       headers: opts.headers
     }
-    console.log(req)
 
     // Set up the request
     let response = ''
