@@ -23,7 +23,7 @@ const init = () => {
       cache = JSON.parse(str)
     }
   } catch (e) {
-    console.error(e)
+    // console.error(e)
   }
 }
 
