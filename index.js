@@ -149,8 +149,12 @@ const request = async (opts) => {
 
 // const exchange API key for bearer token
 const getBearerToken = async (apiKey) => {
+  let url = 'https://iam.cloud.ibm.com/identity/token'
+  if (process.env.IAM_STAGING) {
+    url = 'https://iam.stage1.ng.bluemix.net/identity/token'
+  }
   const req = {
-    url: 'https://iam.cloud.ibm.com/identity/token',
+    url: url,
     data: {
       grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
       apikey: apiKey
