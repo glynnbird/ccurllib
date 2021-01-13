@@ -6,8 +6,14 @@ const cachefile = 'keycache.json'
 const debug = require('debug')('ccurl')
 const querystring = require('querystring')
 const https = require('https')
+const http = require('http')
 const url = require('url')
+const crypto = require('crypto')
 let cache = {}
+
+const sha256 = (str) => {
+  return crypto.createHash('sha256').update(str).digest('hex')
+}
 
 const init = () => {
   const p1 = path.join(homedir, cachedir)
@@ -28,11 +34,20 @@ const init = () => {
 }
 
 const write = () => {
+  const ts = new Date().getTime() / 1000
+  // remove invalid items from cache
+  for (const i in cache) {
+    const val = cache[i]
+    if (val && val.expiration < ts) {
+      delete cache[i]
+    }
+  }
   const p = path.join(homedir, cachedir, cachefile)
   fs.writeFileSync(p, JSON.stringify(cache))
 }
 
 const get = (key) => {
+  key = sha256(key)
   const val = cache[key]
   const ts = new Date().getTime() / 1000
   if (val && val.expiration < ts - 5) {
@@ -50,6 +65,7 @@ const get = (key) => {
 }
 
 const set = (key, value) => {
+  key = sha256(key)
   cache[key] = value
   write()
 }
@@ -80,6 +96,7 @@ const jsonParse = (str) => {
 */
 const request = async (opts) => {
   return new Promise((resolve, reject) => {
+    let h
     // Build the post string from an object
     opts.method = opts.method ? opts.method : 'get'
     const allMethods = ['get', 'head', 'post', 'put', 'delete']
@@ -96,9 +113,16 @@ const request = async (opts) => {
     if (!opts.url) {
       throw new Error('invalid url')
     }
-    var parsed = new url.URL(opts.url)
+    const parsed = new url.URL(opts.url)
+    if (parsed.protocol === 'https:') {
+      h = https
+    } else if (parsed.protocol === 'http:') {
+      h = http
+    } else {
+      throw new Error('invalid protocol')
+    }
     opts.qs = opts.qs ? opts.qs : {}
-    for (var key in opts.qs) {
+    for (const key in opts.qs) {
       parsed.searchParams.append(key, opts.qs[key])
     }
 
@@ -114,7 +138,7 @@ const request = async (opts) => {
     }
 
     // An object of options to indicate where to post to
-    var req = {
+    const req = {
       host: parsed.hostname,
       path: parsed.pathname + parsed.search,
       method: opts.method,
@@ -123,7 +147,7 @@ const request = async (opts) => {
 
     // Set up the request
     let response = ''
-    var request = https.request(req, function (res) {
+    const request = h.request(req, function (res) {
       res.setEncoding('utf8')
       res.on('data', function (chunk) {
         response += chunk
@@ -165,11 +189,52 @@ const getBearerToken = async (apiKey) => {
   return response
 }
 
+/* Makes an HTTPS API request to a JSON API service but does IAM key exchange first
+e.g.
+  const opts = {
+    url: 'https://myapi.myserver.com/my/path',
+    qs: {
+      a:1,
+      b:2
+    },
+    headers: {
+      myheader: 'x'
+    },
+    method: 'get'
+  }
+  request(opts).then(console.log)
+*/
+const iamRequest = async (opts, iamKey) => {
+  if (iamKey) {
+    let obj
+    obj = get(iamKey)
+    if (!obj) {
+      try {
+        obj = await getBearerToken(iamKey)
+        if (obj) {
+          set(iamKey, obj)
+        }
+      } catch (e) {
+        console.error('IAM Auth failed')
+        process.exit(1)
+      }
+    }
+    if (!opts.headers) {
+      opts.headers = {}
+    }
+    opts.headers.Authorization = 'Bearer ' + obj.access_token
+  }
+  return request(opts)
+}
+
+init()
+
 module.exports = {
   init,
   write,
   get,
   set,
   request,
+  iamRequest,
   getBearerToken
 }
