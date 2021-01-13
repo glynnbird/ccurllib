@@ -3,7 +3,6 @@ const path = require('path')
 const homedir = require('os').homedir()
 const cachedir = '.ccurl'
 const cachefile = 'keycache.json'
-const debug = require('debug')('ccurl')
 const querystring = require('querystring')
 const https = require('https')
 const http = require('http')
@@ -51,15 +50,12 @@ const get = (key) => {
   const val = cache[key]
   const ts = new Date().getTime() / 1000
   if (val && val.expiration < ts - 5) {
-    debug('cache expired')
     delete cache[key]
     write()
     return null
   } else if (val) {
-    debug('cache hit')
     return val
   } else {
-    debug('cache miss')
     return null
   }
 }
