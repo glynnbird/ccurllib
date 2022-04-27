@@ -3,7 +3,6 @@ const path = require('path')
 const homedir = require('os').homedir()
 const cachedir = '.ccurl'
 const cachefile = 'keycache.json'
-const querystring = require('querystring')
 const https = require('https')
 const http = require('http')
 const url = require('url')
@@ -102,7 +101,7 @@ const request = async (opts) => {
     const methods = ['post', 'put']
     let postData
     if (methods.includes(opts.method)) {
-      postData = querystring.stringify(opts.data)
+      postData = new URLSearchParams(opts.data).toString()
     }
 
     // parse
@@ -174,7 +173,7 @@ const getBearerToken = async (apiKey) => {
     url = 'https://iam.stage1.ng.bluemix.net/identity/token'
   }
   const req = {
-    url: url,
+    url,
     data: {
       grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
       apikey: apiKey
