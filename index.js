@@ -3,7 +3,6 @@ const path = require('path')
 const homedir = require('os').homedir()
 const cachedir = '.ccurl'
 const cachefile = 'keycache.json'
-const querystring = require('querystring')
 const https = require('https')
 const http = require('http')
 const url = require('url')
@@ -101,8 +100,8 @@ const request = async (opts) => {
     }
     const methods = ['post', 'put']
     let postData
-    if (methods.includes(opts.method)) {
-      postData = querystring.stringify(opts.data)
+    if (methods.includes(opts.method) && typeof opts.data === 'object') {
+      postData = new URLSearchParams(opts.data).toString()
     }
 
     // parse
@@ -124,7 +123,7 @@ const request = async (opts) => {
 
     // pathname
     if (opts.dbname && opts.path) {
-      parsed.pathname = '/' + opts.dbname + '/' + opts.path
+      parsed.pathname = '/' + encodeURIComponent(opts.dbname) + '/' + opts.path
     }
 
     // headers
@@ -139,6 +138,9 @@ const request = async (opts) => {
       path: parsed.pathname + parsed.search,
       method: opts.method,
       headers: opts.headers
+    }
+    if (parsed.username && parsed.password) {
+      req.auth = `${parsed.username}:${parsed.password}`
     }
 
     // Set up the request
@@ -174,7 +176,7 @@ const getBearerToken = async (apiKey) => {
     url = 'https://iam.stage1.ng.bluemix.net/identity/token'
   }
   const req = {
-    url: url,
+    url,
     data: {
       grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
       apikey: apiKey
