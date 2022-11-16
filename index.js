@@ -128,7 +128,7 @@ const request = async (opts) => {
 
     // headers
     opts.headers = opts.headers || {}
-    if (methods.includes(opts.method)) {
+    if (postData) {
       opts.headers['Content-Length'] = Buffer.byteLength(postData)
     }
 
@@ -156,13 +156,13 @@ const request = async (opts) => {
         }
         resolve(jsonParse(response))
       })
-      res.on('error', function (e) {
-        reject(e)
-      })
+    })
+    request.on('error', function (e) {
+      reject(e)
     })
 
     // post the data
-    if (methods.includes(opts.method)) {
+    if (postData) {
       request.write(postData)
     }
     request.end()
