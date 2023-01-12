@@ -1,10 +1,9 @@
 {
   "name": "ccurllib",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Utility library for ccurl",
   "main": "index.js",
   "scripts": {
-    "test": "standard --fix"
   },
   "repository": {
     "type": "git",
@@ -18,8 +17,5 @@
   "bugs": {
     "url": "https://github.com/glynnbird/ccurllib/issues"
   },
-  "homepage": "https://github.com/glynnbird/ccurllib#readme",
-  "devDependencies": {
-    "standard": "^17.0.0"
-  }
+  "homepage": "https://github.com/glynnbird/ccurllib#readme"
 }
