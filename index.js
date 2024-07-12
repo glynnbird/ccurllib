@@ -100,7 +100,7 @@ const request = async (opts) => {
     }
     const methods = ['post', 'put']
     let postData
-    if (methods.includes(opts.method)) {
+    if (methods.includes(opts.method) && typeof opts.data === 'object') {
       postData = new URLSearchParams(opts.data).toString()
     }
 
@@ -123,7 +123,7 @@ const request = async (opts) => {
 
     // pathname
     if (opts.dbname && opts.path) {
-      parsed.pathname = '/' + opts.dbname + '/' + opts.path
+      parsed.pathname = '/' + encodeURIComponent(opts.dbname) + '/' + opts.path
     }
 
     // headers
@@ -138,6 +138,9 @@ const request = async (opts) => {
       path: parsed.pathname + parsed.search,
       method: opts.method,
       headers: opts.headers
+    }
+    if (parsed.username && parsed.password) {
+      req.auth = `${parsed.username}:${parsed.password}`
     }
 
     // Set up the request
