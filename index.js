@@ -1,12 +1,12 @@
 const fs = require('fs')
 const path = require('path')
+const crypto = require('crypto')
+const querystring = require('querystring')
 const homedir = require('os').homedir()
+const pkg = require('./package.json')
 const cachedir = '.ccurl'
 const cachefile = 'keycache.json'
-const https = require('https')
-const http = require('http')
-const url = require('url')
-const crypto = require('crypto')
+
 let cache = {}
 
 const sha256 = (str) => {
@@ -65,14 +65,6 @@ const set = (key, value) => {
   write()
 }
 
-const jsonParse = (str) => {
-  try {
-    return JSON.parse(str)
-  } catch (e) {
-    return str
-  }
-}
-
 /*
   Makes an HTTPS API request to a JSON API service
   e.g.
@@ -87,86 +79,34 @@ const jsonParse = (str) => {
       },
       method: 'get'
     }
+    if "body" is supplied, it's used as a post body. If "data" is supplied,
+    it's JSON stringified and put in "body".
     request(opts).then(console.log)
 */
 const request = async (opts) => {
-  return new Promise((resolve, reject) => {
-    let h
-    // Build the post string from an object
-    opts.method = opts.method ? opts.method : 'get'
-    const allMethods = ['get', 'head', 'post', 'put', 'delete']
-    if (!allMethods.includes(opts.method)) {
-      throw new Error('invalid method')
-    }
-    const methods = ['post', 'put']
-    let postData
-    if (methods.includes(opts.method) && typeof opts.data === 'object') {
-      postData = new URLSearchParams(opts.data).toString()
-    }
-
-    // parse
-    if (!opts.url) {
-      throw new Error('invalid url')
-    }
-    const parsed = new url.URL(opts.url)
-    if (parsed.protocol === 'https:') {
-      h = https
-    } else if (parsed.protocol === 'http:') {
-      h = http
-    } else {
-      throw new Error('invalid protocol')
-    }
-    opts.qs = opts.qs ? opts.qs : {}
-    for (const key in opts.qs) {
-      parsed.searchParams.append(key, opts.qs[key])
-    }
-
-    // pathname
-    if (opts.dbname && opts.path) {
-      parsed.pathname = '/' + encodeURIComponent(opts.dbname) + '/' + opts.path
-    }
-
-    // headers
-    opts.headers = opts.headers || {}
-    if (postData) {
-      opts.headers['Content-Length'] = Buffer.byteLength(postData)
-    }
-
-    // An object of options to indicate where to post to
-    const req = {
-      host: parsed.hostname,
-      path: parsed.pathname + parsed.search,
-      method: opts.method,
-      headers: opts.headers
-    }
-    if (parsed.username && parsed.password) {
-      req.auth = `${parsed.username}:${parsed.password}`
-    }
-
-    // Set up the request
-    let response = ''
-    const request = h.request(req, function (res) {
-      res.setEncoding('utf8')
-      res.on('data', function (chunk) {
-        response += chunk
-      })
-      res.on('close', function () {
-        if (res.statusCode >= 400) {
-          return reject(jsonParse(response))
-        }
-        resolve(jsonParse(response))
-      })
+  const parsedUrl = new URL(opts.url)
+  delete opts.url
+  let u = parsedUrl.origin + parsedUrl.pathname
+  if (opts.qs) {
+    u += `?${querystring.stringify(opts.qs)}`
+    delete opts.qs
+  }
+  if (opts.data) {
+    opts.body = JSON.stringify(opts.data)
+    delete opts.data
+  }
+  if (!opts.headers || !opts.headers['content-type']) {
+    Object.assign(opts.headers, {
+      'content-type': 'application/json',
+      'user-agent': `${pkg.name}/${pkg.version}`
     })
-    request.on('error', function (e) {
-      reject(e)
-    })
-
-    // post the data
-    if (postData) {
-      request.write(postData)
-    }
-    request.end()
-  })
+  }
+  if (parsedUrl.username && parsedUrl.password) {
+    opts.headers.authorization = `Basic ${btoa(parsedUrl.username + ':' + parsedUrl.password)}`
+  }
+  console.log(u, opts)
+  const response = await fetch(u, opts)
+  return await response.json()
 }
 
 // const exchange API key for bearer token
@@ -175,12 +115,16 @@ const getBearerToken = async (apiKey) => {
   if (process.env.IAM_STAGING) {
     url = 'https://iam.stage1.ng.bluemix.net/identity/token'
   }
+  const data = {
+    grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
+    apikey: apiKey
+  }
   const req = {
     url,
-    data: {
-      grant_type: 'urn:ibm:params:oauth:grant-type:apikey',
-      apikey: apiKey
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded'
     },
+    body: new URLSearchParams(data).toString(),
     method: 'post'
   }
   const response = await request(req)
