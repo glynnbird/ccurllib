@@ -104,7 +104,6 @@ const request = async (opts) => {
   if (parsedUrl.username && parsedUrl.password) {
     opts.headers.authorization = `Basic ${btoa(parsedUrl.username + ':' + parsedUrl.password)}`
   }
-  console.log(u, opts)
   const response = await fetch(u, opts)
   return await response.json()
 }
