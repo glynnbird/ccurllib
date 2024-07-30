@@ -1,18 +1,21 @@
+const stream = require('stream')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
 const querystring = require('querystring')
 const homedir = require('os').homedir()
 const pkg = require('./package.json')
+const Readable = stream.Readable
 const cachedir = '.ccurl'
 const cachefile = 'keycache.json'
-
 let cache = {}
 
+// sha256 a string
 const sha256 = (str) => {
   return crypto.createHash('sha256').update(str).digest('hex')
 }
 
+// initialise the IAM key cache
 const init = () => {
   const p1 = path.join(homedir, cachedir)
   try {
@@ -31,6 +34,7 @@ const init = () => {
   }
 }
 
+// write cache to disk, minus any invalid entries
 const write = () => {
   const ts = new Date().getTime() / 1000
   // remove invalid items from cache
@@ -44,6 +48,7 @@ const write = () => {
   fs.writeFileSync(p, JSON.stringify(cache))
 }
 
+// get a key from cache, if it's there, or null
 const get = (key) => {
   key = sha256(key)
   const val = cache[key]
@@ -59,6 +64,7 @@ const get = (key) => {
   }
 }
 
+// set cache key
 const set = (key, value) => {
   key = sha256(key)
   cache[key] = value
@@ -77,13 +83,16 @@ const set = (key, value) => {
       headers: {
         myheader: 'x'
       },
+      qs: {
+        include_docs: true
+      },
       method: 'get'
     }
     if "body" is supplied, it's used as a post body. If "data" is supplied,
     it's JSON stringified and put in "body".
     request(opts).then(console.log)
 */
-const request = async (opts) => {
+const requestGeneral = async (opts) => {
   const parsedUrl = new URL(opts.url)
   delete opts.url
   let u = parsedUrl.origin + parsedUrl.pathname
@@ -95,6 +104,7 @@ const request = async (opts) => {
     opts.body = JSON.stringify(opts.data)
     delete opts.data
   }
+  opts.headers = opts.headers || {}
   if (!opts.headers || !opts.headers['content-type']) {
     Object.assign(opts.headers, {
       'content-type': 'application/json',
@@ -105,7 +115,17 @@ const request = async (opts) => {
     opts.headers.authorization = `Basic ${btoa(parsedUrl.username + ':' + parsedUrl.password)}`
   }
   const response = await fetch(u, opts)
+  return response
+}
+
+const request = async (opts) => {
+  const response = await requestGeneral(opts)
   return await response.json()
+}
+
+const requestStream = async (opts) => {
+  const response = await requestGeneral(opts)
+  return Readable.fromWeb(response.body)
 }
 
 // const exchange API key for bearer token
@@ -145,7 +165,7 @@ e.g.
   }
   request(opts).then(console.log)
 */
-const iamRequest = async (opts, iamKey) => {
+const iamRequestGeneral = async (opts, iamKey) => {
   if (iamKey) {
     let obj
     obj = get(iamKey)
@@ -165,7 +185,17 @@ const iamRequest = async (opts, iamKey) => {
     }
     opts.headers.Authorization = 'Bearer ' + obj.access_token
   }
-  return request(opts)
+  return await requestGeneral(opts)
+}
+
+const iamRequest = async (opts, iamKey) => {
+  const response = await iamRequestGeneral(opts, iamKey)
+  return await response.json()
+}
+
+const iamRequestStream = async (opts, iamKey) => {
+  const response = await iamRequestGeneral(opts, iamKey)
+  return Readable.fromWeb(response.body)
 }
 
 init()
@@ -176,6 +206,8 @@ module.exports = {
   get,
   set,
   request,
+  requestStream,
   iamRequest,
+  iamRequestStream,
   getBearerToken
 }
