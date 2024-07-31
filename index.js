@@ -170,7 +170,7 @@ const getBearerToken = async (apiKey) => {
     ignoreIAM: true
   }
   const response = await request(req)
-  return response
+  return response.result
 }
 
 init()
