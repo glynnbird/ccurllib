@@ -10,10 +10,9 @@ Utilities for the ccurl utility to provide:
 ```js
 const cc = require('ccurllib')
 const opts = {
-  url: 'https://myapi.myserver.com/my/path',
+  url: 'https://myapi.myserver.com/_all_docs',
   qs: {
-    a:1,
-    b:2
+    limit: 4
   },
   headers: {
     myheader: 'x'
@@ -21,6 +20,10 @@ const opts = {
   method: 'get'
 }
 const response = await cc.request(opts)
+// {
+//   status: 200,
+//   result: [ '_replicator', 'aaa', 'aardvark', 'alerts1' ]
+// }
 ```
 
 or for a Node.js stream:

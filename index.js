@@ -139,7 +139,10 @@ const requestGeneral = async (opts) => {
 
 const request = async (opts) => {
   const response = await requestGeneral(opts)
-  return await response.json()
+  return {
+    status: response.status,
+    result: await response.json()
+  }
 }
 
 const requestStream = async (opts) => {
