@@ -93,6 +93,25 @@ const set = (key, value) => {
     request(opts).then(console.log)
 */
 const requestGeneral = async (opts) => {
+  const iamKey = process.env.IAM_API_KEY
+  if (iamKey && !opts.ignoreIAM) {
+    let obj
+    obj = get(iamKey)
+    if (!obj) {
+      try {
+        obj = await getBearerToken(iamKey)
+        if (obj) {
+          set(iamKey, obj)
+        }
+      } catch (e) {
+        throw new Error('IAM Auth failed')
+      }
+    }
+    if (!opts.headers) {
+      opts.headers = {}
+    }
+    opts.headers.Authorization = 'Bearer ' + obj.access_token
+  }
   const parsedUrl = new URL(opts.url)
   delete opts.url
   let u = parsedUrl.origin + parsedUrl.pathname
@@ -144,58 +163,11 @@ const getBearerToken = async (apiKey) => {
       'content-type': 'application/x-www-form-urlencoded'
     },
     body: new URLSearchParams(data).toString(),
-    method: 'post'
+    method: 'post',
+    ignoreIAM: true
   }
   const response = await request(req)
   return response
-}
-
-/* Makes an HTTPS API request to a JSON API service but does IAM key exchange first
-e.g.
-  const opts = {
-    url: 'https://myapi.myserver.com/my/path',
-    qs: {
-      a:1,
-      b:2
-    },
-    headers: {
-      myheader: 'x'
-    },
-    method: 'get'
-  }
-  request(opts).then(console.log)
-*/
-const iamRequestGeneral = async (opts, iamKey) => {
-  if (iamKey) {
-    let obj
-    obj = get(iamKey)
-    if (!obj) {
-      try {
-        obj = await getBearerToken(iamKey)
-        if (obj) {
-          set(iamKey, obj)
-        }
-      } catch (e) {
-        console.error('IAM Auth failed')
-        process.exit(1)
-      }
-    }
-    if (!opts.headers) {
-      opts.headers = {}
-    }
-    opts.headers.Authorization = 'Bearer ' + obj.access_token
-  }
-  return await requestGeneral(opts)
-}
-
-const iamRequest = async (opts, iamKey) => {
-  const response = await iamRequestGeneral(opts, iamKey)
-  return await response.json()
-}
-
-const iamRequestStream = async (opts, iamKey) => {
-  const response = await iamRequestGeneral(opts, iamKey)
-  return Readable.fromWeb(response.body)
 }
 
 init()
@@ -207,7 +179,5 @@ module.exports = {
   set,
   request,
   requestStream,
-  iamRequest,
-  iamRequestStream,
   getBearerToken
 }
