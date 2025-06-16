@@ -1,13 +1,21 @@
-const stream = require('stream')
-const fs = require('fs')
-const path = require('path')
-const crypto = require('crypto')
-const querystring = require('querystring')
-const homedir = require('os').homedir()
-const pkg = require('./package.json')
-const Readable = stream.Readable
-const cachedir = '.ccurl'
-const cachefile = 'keycache.json'
+import { Readable }  from 'node:stream'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import crypto from 'node:crypto'
+import querystring  from 'node:querystring'
+import os from 'node:os'
+
+// get home directory
+const HOME_DIR = os.homedir()
+
+// load package meta data
+const pkg = JSON.parse(readFileSync('./package.json', { encoding: 'utf8' }))
+
+// constants
+const CACHE_DIR = '.ccurl'
+const CACHE_FILE = 'keycache.json'
+
+// the cache itself
 let cache = {}
 
 // sha256 a string
@@ -16,16 +24,16 @@ const sha256 = (str) => {
 }
 
 // initialise the IAM key cache
-const init = () => {
-  const p1 = path.join(homedir, cachedir)
+export function  init() {
+  const p1 = path.join(HOME_DIR, CACHE_DIR)
   try {
-    fs.mkdirSync(p1, { mode: 0o700 })
+    mkdirSync(p1, { mode: 0o700 })
   } catch (e) {
   }
 
   try {
-    const p2 = path.join(homedir, cachedir, cachefile)
-    const str = fs.readFileSync(p2, { encoding: 'utf8' })
+    const p2 = path.join(HOME_DIR, CACHE_DIR, CACHE_FILE)
+    const str = readFileSync(p2, { encoding: 'utf8' })
     if (str) {
       cache = JSON.parse(str)
     }
@@ -35,7 +43,7 @@ const init = () => {
 }
 
 // write cache to disk, minus any invalid entries
-const write = () => {
+export function write () {
   const ts = new Date().getTime() / 1000
   // remove invalid items from cache
   for (const i in cache) {
@@ -44,12 +52,12 @@ const write = () => {
       delete cache[i]
     }
   }
-  const p = path.join(homedir, cachedir, cachefile)
-  fs.writeFileSync(p, JSON.stringify(cache))
+  const p = path.join(HOME_DIR, CACHE_DIR, CACHE_FILE)
+  writeFileSync(p, JSON.stringify(cache))
 }
 
 // get a key from cache, if it's there, or null
-const get = (key) => {
+export function get(key) {
   key = sha256(key)
   const val = cache[key]
   const ts = new Date().getTime() / 1000
@@ -65,7 +73,7 @@ const get = (key) => {
 }
 
 // set cache key
-const set = (key, value) => {
+export function set(key, value) {
   key = sha256(key)
   cache[key] = value
   write()
@@ -92,7 +100,7 @@ const set = (key, value) => {
     it's JSON stringified and put in "body".
     request(opts).then(console.log)
 */
-const requestGeneral = async (opts) => {
+async function requestGeneral(opts) {
   const iamKey = process.env.IAM_API_KEY
   if (iamKey && !opts.ignoreIAM) {
     let obj
@@ -137,7 +145,7 @@ const requestGeneral = async (opts) => {
   return response
 }
 
-const request = async (opts) => {
+export async function request(opts) {
   const response = await requestGeneral(opts)
   return {
     status: response.status,
@@ -145,13 +153,13 @@ const request = async (opts) => {
   }
 }
 
-const requestStream = async (opts) => {
+export async function requestStream (opts) {
   const response = await requestGeneral(opts)
   return Readable.fromWeb(response.body)
 }
 
 // const exchange API key for bearer token
-const getBearerToken = async (apiKey) => {
+export async function  getBearerToken(apiKey) {
   let url = 'https://iam.cloud.ibm.com/identity/token'
   if (process.env.IAM_STAGING) {
     url = 'https://iam.stage1.ng.bluemix.net/identity/token'
@@ -174,13 +182,3 @@ const getBearerToken = async (apiKey) => {
 }
 
 init()
-
-module.exports = {
-  init,
-  write,
-  get,
-  set,
-  request,
-  requestStream,
-  getBearerToken
-}
