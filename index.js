@@ -9,7 +9,7 @@ import os from 'node:os'
 const HOME_DIR = os.homedir()
 
 // load package meta data
-const pkg = JSON.parse(readFileSync('./package.json', { encoding: 'utf8' }))
+const pkg = JSON.parse(readFileSync(path.join(import.meta.dirname, 'package.json'), { encoding: 'utf8' }))
 
 // constants
 const CACHE_DIR = '.ccurl'
